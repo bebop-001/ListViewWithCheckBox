@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -17,24 +19,14 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.TextView;
-// import android.widget.Toast;
 
 public class MainActivity extends Activity implements OnClickListener {
     String TAG = "ListviewWithCheckbox";
     private static List<SimpleList> itemList = new ArrayList<SimpleList>();
     class SimpleList {
         private String name; private boolean selected;
-        protected SimpleList() {};
-        protected SimpleList(String name, boolean selected) {
+        private SimpleList(String name, boolean selected) {
             this.name = name; this.selected = selected;
-        }
-        protected boolean Selected() {return selected;}
-        protected boolean Selected(boolean selected) {
-            return this.selected = selected;
-        }
-        protected String Name() {return name; }
-        protected String Name(String name) {
-            return this.name = name;
         }
     }
     @Override
@@ -53,58 +45,60 @@ public class MainActivity extends Activity implements OnClickListener {
         }
         Log.w(TAG, "onCreate:list populated");
     }
+    // create a new adapter to force update for deleted/added listview items.
     private void updateView() {
-        ArrayAdapter<SimpleList> adapter = new ViewListAdapter();
-        ListView list = (ListView) findViewById(R.id.my_list);
-        list.setAdapter(adapter);
+        ArrayAdapter<SimpleList> adapter 
+            = new ViewListAdapter(this, R.layout.list_element, itemList);
+        ((ListView)findViewById(R.id.my_list)).setAdapter(adapter);
     }
+    // used to cache list view elements between access.
+    static class ViewHolder {TextView tv; CheckBox cb; int index;}
     // Our list adapter...
     private class ViewListAdapter extends ArrayAdapter<SimpleList> {
-        public ViewListAdapter() {
-            super(MainActivity.this, R.layout.list_element, itemList);
+        LayoutInflater inflater;
+        public ViewListAdapter(Context context, int id, List<SimpleList> itemList) {
+            super(context, id, itemList);
+            inflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         }
         @Override 
         public View getView(int position, View convertView, ViewGroup parent) {
             View itemView = convertView;
             SimpleList item = itemList.get(position);
-            // create a view if input is null.
+            ViewHolder vh;
+            // Initialize the items if the view is empty.
             if (itemView == null) {
-                itemView = getLayoutInflater()
-                    .inflate(R.layout.list_element, parent, false);
+                itemView = inflater.inflate(R.layout.list_element, parent, false);
+                vh = new ViewHolder();
+                TextView tv = vh.tv
+                        = (TextView) itemView.findViewById(R.id.itemName);
+                CheckBox cb = vh.cb 
+                        = (CheckBox) itemView.findViewById(R.id.itemSelected);
+                tv.setText(item.name);
+                cb.setChecked(item.selected);
+                vh.index = position;
+                itemView.setTag(vh); // stash our view holder.
             }
-            // Create list item checkbox and text view.
-            TextView name = (TextView) itemView.findViewById(R.id.itemName);
-            CheckBox selected
-                = (CheckBox) itemView.findViewById(R.id.itemSelected);
-            // tag the new items with their index into the list so
-            // the onClick listener can find them in the list.
-            name.setTag(position);
-            selected.setTag(position);
-            // Set the checkbox and name to that indicated by the itemList.
-            selected.setChecked(item.Selected());
-            name.setText(item.Name());
-            Log.w(TAG, "getView Name: \"" + item.Name()
-                + "Selected: " + item.Selected());
+            vh = (ViewHolder)itemView.getTag();
+            vh.cb.setChecked(item.selected);
+            Log.w(TAG, "getView Name: \"" + item.name
+                + "\", Selected: " + item.selected);
             return itemView;
         }
     }
     // list-view on click method.
     @Override
     public void onClick(View v) {
-        // each item is taged with its intex into the itemlist when created.
-        int viewIndex = (Integer) v.getTag();
-        SimpleList item = itemList.get(viewIndex);
-        // If this was the checkbox, update the list to reflect its state.
-        if (v instanceof CheckBox) {
-            item.Selected(((CheckBox)v).isChecked());
-        }
-        /* 
-         *  String mess = "Row: " + viewIndex
-         *          + " Selected: " + item.Selected()
-         *          + " Name: \"" + item.Name() + "\"";
-         *  Log.w(TAG, "onClick:" + mess);
-         *  Toast.makeText(MainActivity.this, mess, Toast.LENGTH_LONG).show();
-         */
+        // view container was tagged with ViewHolder and both the
+        // TextView and CheckBox items call this call back so that
+        // clicking the TextView also toggles the CheckBox.
+        ViewHolder vh = (ViewHolder)((View)v.getParent()).getTag();
+        SimpleList item = itemList.get(vh.index);
+        boolean selected = vh.cb.isChecked();
+        // if the clicked view was a text view, toggle the checkbox.
+        if (v instanceof TextView) 
+            vh.cb.setChecked(selected == false);
+        item.selected = vh.cb.isChecked();
+        Log.i(TAG, "onClick: checkbox " + vh.index + ":" + item.selected);
     }
     // checkbox listener for select all checkbox.
     public void selectAllClick(View v) {
@@ -112,32 +106,30 @@ public class MainActivity extends Activity implements OnClickListener {
         // of the select all checkbox.
         boolean selected = ((CheckBox) v).isChecked();
         for (SimpleList h : itemList) {
-            h.Selected(selected);
+            h.selected = selected;
         }
         updateView();
-        // Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
     }
     // button listener for "add item" button
     public void addNewItemClick(View v) {
-        // Generate a random int between 1 and the last item in the list.
+        // Generate a random int between 1 and the last item in the list
+        // and insert our new item at that location.
         int insert_at = (int) (Math.random() * itemList.size());
-        // Create an empty item and give it a name.  By default
-        // it is not selected.
-        SimpleList item = new SimpleList();
-        item.Name("new item at " + insert_at);
-        itemList.add(insert_at, item);
+        itemList.add(insert_at, 
+             new SimpleList("new item at " + insert_at, false));
+        Log.w(TAG, "AddNewItem at " + insert_at);
         updateView();
-        // Log.w(TAG, "AddNewItem at " + insert_at);
     }
     // button listener for "delete selected" button
     public void deleteSelectedClick(View v) {
         // Delete selected items in list starting from greatest index.
         for (int i = itemList.size() - 1; i >= 0; i--) {
-             if (itemList.get(i).Selected()) {
+             if (itemList.get(i).selected) {
                  itemList.remove(i);
+                 Log.w(TAG, "deleteSelectedClick: " + i);
+
              }
         }
         updateView();
-        // Log.w(TAG, "Delete selected...");
     }
 }
