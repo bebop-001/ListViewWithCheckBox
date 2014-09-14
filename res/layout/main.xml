@@ -1,0 +1,43 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity" >
+
+    <ListView
+        android:id="@+id/my_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/deleteSelected" >
+    </ListView>
+
+    <CheckBox
+        android:id="@+id/mainCheckbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:focusable="false"
+        android:onClick="selectAllClick"
+        android:text="@string/select_all" />
+
+    <Button
+        android:id="@+id/deleteSelected"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/mainCheckbox"
+        android:onClick="deleteSelectedClick"
+        android:text="@string/delete_selected" />
+
+    <Button
+        android:id="@+id/addItem"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/mainCheckbox"
+        android:layout_toRightOf="@+id/deleteSelected"
+        android:onClick="addNewItemClick"
+        android:text="@string/add_item" />
+
+</RelativeLayout>
