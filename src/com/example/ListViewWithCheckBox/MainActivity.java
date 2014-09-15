@@ -23,6 +23,8 @@ import android.widget.TextView;
 public class MainActivity extends Activity implements OnClickListener {
     String TAG = "ListviewWithCheckbox";
     private static List<SimpleList> itemList = new ArrayList<SimpleList>();
+    private static ArrayAdapter<SimpleList> listViewAdapter; 
+
     class SimpleList {
         private String name; private boolean selected;
         private SimpleList(String name, boolean selected) {
@@ -36,7 +38,8 @@ public class MainActivity extends Activity implements OnClickListener {
         if (itemList.isEmpty()) {
             initializeList(20);
         }
-        updateView();
+        listViewAdapter = new ViewListAdapter(this, R.layout.list_element, itemList);
+        ((ListView)findViewById(R.id.my_list)).setAdapter(listViewAdapter);
     }
     // Initialize the list to strings and index for demo.
     private void initializeList(int size) {
@@ -45,14 +48,13 @@ public class MainActivity extends Activity implements OnClickListener {
         }
         Log.w(TAG, "onCreate:list populated");
     }
-    // create a new adapter to force update for deleted/added listview items.
-    private void updateView() {
-        ArrayAdapter<SimpleList> adapter 
-            = new ViewListAdapter(this, R.layout.list_element, itemList);
-        ((ListView)findViewById(R.id.my_list)).setAdapter(adapter);
-    }
     // used to cache list view elements between access.
-    static class ViewHolder {TextView tv; CheckBox cb; int index;}
+    static class ViewHolder {
+        private TextView tv;
+        private CheckBox cb;
+        private int index;
+        SimpleList item;
+    }
     // Our list adapter...
     private class ViewListAdapter extends ArrayAdapter<SimpleList> {
         LayoutInflater inflater;
@@ -63,25 +65,28 @@ public class MainActivity extends Activity implements OnClickListener {
         @Override 
         public View getView(int position, View convertView, ViewGroup parent) {
             View itemView = convertView;
-            SimpleList item = itemList.get(position);
-            ViewHolder vh;
+            ViewHolder vh = null;
+            if (itemView != null)
+                vh = (ViewHolder)itemView.getTag();
             // Initialize the items if the view is empty.
-            if (itemView == null) {
+            if (vh == null || vh.index != position) {
                 itemView = inflater.inflate(R.layout.list_element, parent, false);
+                SimpleList item = itemList.get(position);
                 vh = new ViewHolder();
+                vh.item = item;
                 TextView tv = vh.tv
                         = (TextView) itemView.findViewById(R.id.itemName);
                 CheckBox cb = vh.cb 
                         = (CheckBox) itemView.findViewById(R.id.itemSelected);
-                tv.setText(item.name);
+                tv.setText(vh.item.name);
                 cb.setChecked(item.selected);
                 vh.index = position;
                 itemView.setTag(vh); // stash our view holder.
             }
             vh = (ViewHolder)itemView.getTag();
-            vh.cb.setChecked(item.selected);
-            Log.w(TAG, "getView Name: \"" + item.name
-                + "\", Selected: " + item.selected);
+            vh.cb.setChecked(vh.item.selected);
+            Log.w(TAG, "getView Name: \"" + vh.item.name
+                + "\", Selected: " + vh.item.selected);
             return itemView;
         }
     }
@@ -91,14 +96,10 @@ public class MainActivity extends Activity implements OnClickListener {
         // view container was tagged with ViewHolder and both the
         // TextView and CheckBox items call this call back so that
         // clicking the TextView also toggles the CheckBox.
-        ViewHolder vh = (ViewHolder)((View)v.getParent()).getTag();
-        SimpleList item = itemList.get(vh.index);
-        boolean selected = vh.cb.isChecked();
-        // if the clicked view was a text view, toggle the checkbox.
-        if (v instanceof TextView) 
-            vh.cb.setChecked(selected == false);
-        item.selected = vh.cb.isChecked();
-        Log.i(TAG, "onClick: checkbox " + vh.index + ":" + item.selected);
+        ViewHolder vh = (ViewHolder)(v.getTag());
+        vh.item.selected = vh.item.selected == false;
+        vh.cb.setChecked(vh.item.selected);
+        Log.i(TAG, "onClick: checkbox " + vh.index + ":" + vh.item.selected);
     }
     // checkbox listener for select all checkbox.
     public void selectAllClick(View v) {
@@ -108,7 +109,7 @@ public class MainActivity extends Activity implements OnClickListener {
         for (SimpleList h : itemList) {
             h.selected = selected;
         }
-        updateView();
+        listViewAdapter.notifyDataSetChanged();
     }
     // button listener for "add item" button
     public void addNewItemClick(View v) {
@@ -118,7 +119,7 @@ public class MainActivity extends Activity implements OnClickListener {
         itemList.add(insert_at, 
              new SimpleList("new item at " + insert_at, false));
         Log.w(TAG, "AddNewItem at " + insert_at);
-        updateView();
+        listViewAdapter.notifyDataSetChanged();
     }
     // button listener for "delete selected" button
     public void deleteSelectedClick(View v) {
@@ -130,6 +131,6 @@ public class MainActivity extends Activity implements OnClickListener {
 
              }
         }
-        updateView();
+        listViewAdapter.notifyDataSetChanged();
     }
 }
